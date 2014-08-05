@@ -36,6 +36,8 @@ using Nini.Config;
 using OpenMetaverse;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Collections.Specialized;
 
 
 namespace WhiteCore.Modules.Web
@@ -112,6 +114,9 @@ namespace WhiteCore.Modules.Web
             bool allowRegistration = settings.WebRegistration;
             bool anonymousLogins;
 
+            string StaffAvatarName = webInterface.StaffAvatarName;
+            string ExternalAvatarRegURL = webInterface.ExternalAvatarRegURL;
+
             // allow configuration to override the web settings
             IConfig config = webInterface.Registry.RequestModuleInterface<ISimulationBase>().ConfigSource.Configs ["LoginService"];
             if (config != null)
@@ -164,6 +169,10 @@ namespace WhiteCore.Modules.Web
                 // a bit of idiot proofing
                 if (AvatarName == "")  {
                     response = "<h3>" + translator.GetTranslatedString ("AvatarNameError") + "</h3>";   
+                    return null;
+                }
+                if(AvatarName.EndsWith(StaffAvatarName,System.StringComparison.CurrentCultureIgnoreCase) && StaffAvatarName.Length>2){
+                    response = "<h4>" + translator.GetTranslatedString("StaffAvatarNameError") + "</h4>";
                     return null;
                 }
                 if ( (AvatarPassword == "") || (AvatarPassword != AvatarPasswordCheck) )
@@ -231,10 +240,21 @@ namespace WhiteCore.Modules.Web
                             profileData.UpdateUserProfile (profile);
                         }
 
-                        response = "<h3>Successfully created account, redirecting to main page</h3>" +
-                                   "<script language=\"javascript\">" +
-                                   "setTimeout(function() {window.location.href = \"index.html\";}, 3000);" +
-                                   "</script>";
+                        // Post registration data to "ExternalAvatarRegURL"
+                        // WARNING !! Make sure this is secure !!
+                        if(ExternalAvatarRegURL.Length>3){
+                            using (var regPost = new WebClient()){
+                                var pData = new NameValueCollection();
+                                pData["FirstName"]  = FirstName;
+                                pData["LastName"]   = LastName;
+                                pData["EMail"]      = UserEmail;
+                                pData["Password"]   = AvatarPassword;
+
+                                var pResponse = regPost.UploadValues(ExternalAvatarRegURL, "POST", pData);
+                            }
+                        }
+
+                        response = "<h3>Successfully created account, redirecting to main page</h3>";
                     }
                     else
                         response = "<h3>" + error + "</h3>";
