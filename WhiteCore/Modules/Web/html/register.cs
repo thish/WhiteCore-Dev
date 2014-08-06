@@ -36,6 +36,7 @@ using Nini.Config;
 using OpenMetaverse;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Net;
 using System.Collections.Specialized;
 
@@ -185,6 +186,12 @@ namespace WhiteCore.Modules.Web
                     response = "<h3>" + translator.GetTranslatedString ("AvatarEmailError") + "</h3>";   
                     return null;
                 }
+
+                // Only one space is allowed in the name to seperate First and Last of the avatar name
+                if(2 != AvatarName.Split(' ').Length){
+                    response = "<h3>" + translator.GetTranslatedString("AvatarNameSpacingError") + "</h3>";
+                    return null;
+                }
             
                 // so far so good...
                 if (ToSAccept)
@@ -244,17 +251,20 @@ namespace WhiteCore.Modules.Web
                         // WARNING !! Make sure this is secure !!
                         if(ExternalAvatarRegURL.Length>3){
                             using (var regPost = new WebClient()){
+                                regPost.Headers[HttpRequestHeader.ContentType] = "application/x-www-form-urlencoded";
                                 var pData = new NameValueCollection();
-                                pData["FirstName"]  = FirstName;
-                                pData["LastName"]   = LastName;
-                                pData["EMail"]      = UserEmail;
-                                pData["Password"]   = AvatarPassword;
+                                pData["AvatarName"] = AvatarName;
+                                pData["RLFirstName"] = FirstName;
+                                pData["RLLastName"] = LastName;
+                                pData["Email"] = UserEmail;
+                                pData["Password"] = AvatarPassword;
 
                                 var pResponse = regPost.UploadValues(ExternalAvatarRegURL, "POST", pData);
+                                WhiteCore.Framework.ConsoleFramework.MainConsole.Instance.Info("[Website]: " + regPost.Encoding.GetString(pResponse).ToString());
                             }
                         }
 
-                        response = "<h3>Successfully created account, redirecting to main page</h3>";
+                        response = "<h3>Successfully created account " + AvatarName + ".</h3>";
                     }
                     else
                         response = "<h3>" + error + "</h3>";
